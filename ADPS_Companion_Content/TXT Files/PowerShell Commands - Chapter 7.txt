@@ -1,0 +1,160 @@
+#The WinNT in the following IS CASE SENSITIVE
+$connection = [ADSI]"WinNT://trey-dhcp-03" 
+$sUser = $connection.Create("User","ServiceUsr")
+$sUser.SetPassword("P@ssw0rd!")  # No Spaces!
+$sUser.SetInfo()
+
+$sUser.description = "Service Account User"
+$sUser.SetInfo()
+
+New-LocalUser -UserName ServiceUsr `
+              -Password "P@ssw0rd!" `
+              -ComputerName trey-dhcp-03 `
+              -Description "Service Account User"
+
+$svcPW = Read-Host -Prompt "Enter a Pwd to use: " -AsSecureString
+New-ADUser -Name ServiceUser `
+           -SamAccountName ServiceUser `
+           -Enabled $True `
+           -ChangePasswordAtLogon $False `
+           -Description "Domain-wide Service Account" `
+           -AccountPassword $svcPW `
+           -PassThru 
+
+Get-WindowsFeature -name NET-Framework-Core
+
+Install-WindowsFeature -ComputerName trey-dhcp-03 `
+                       -Name RSAT-AD-PowerShell,NET-Framework-Core `
+                       -Source \\cpr-labhost-6\SxS
+
+New-ADServiceAccount -–Name TestMSA `
+                     -RestrictToSingleComputer `
+                     -Enabled $True `
+                     -PassThru
+
+Add-ADComputerServiceAccount -Identity trey-dhcp-03 `
+                             -ServiceAccount TestMSA `
+                             -PassThru
+
+Get-WindowsFeature -Name NET-Framework-Core,RSAT-AD-PowerShell
+Install-ADServiceAccount -Identity TestMSA
+
+$MSA = 'TREYRESEARCH\TestMSA$'
+$SvcName = 'TestSvc'
+$Password = $Null
+$Svc = Get-WMIObject Win32_Service -filter "Name=""$SvcName"" "
+$InParams = $Svc.psbase.getMethodParameters("Change") 
+$InParams["StartName"] = $MSA 
+$InParams["StartPassword"] = $Password 
+$Svc.invokeMethod("Change",$InParams,$null)
+
+Uninstall-ADServiceAccount -Identity TestMSA
+
+Remove-ADComputerServiceAccount -Identity trey-dhcp-03 `
+                                -ServiceAccount TestMSA `
+                                -PassThru
+Remove-ADServiceAccount -Identity TestMSA
+
+Add-KDSRootKey -EffectiveImmediately
+
+Add-KdsRootKey -EffectiveTime ((Get-Date).AddHours(-10))
+
+New-ADGroup -Name TestMSA `
+            -GroupScope DomainLocal `
+            -Description "Group for servers using TestMSA" `
+            -DisplayName "Test gMSA Group" `
+            -GroupCategory Security `
+            -SAMAccountName TestMSA `
+            -PassThru 
+Add-ADGroupMember -Identity TestMSA `
+                  -Members "trey-rodc-200$","trey-rodc-201$" `
+                  -PassThru
+
+New-ADServiceAccount -Name SvcAcnt1 `
+                     -DNSHostName SvcAcnt1.treyresearch.net `
+                     -PassThru
+
+Set-ADServiceAccount -Identity SvcAcnt1 `
+                     -PrincipalsAllowedToRetrieveManagedPassword TestMSA `
+                     -PrincipalsAllowedToDelegateToAccount TestMSA `
+                     -PassThru
+
+Install-ADServiceAccount -Identity SvcAcnt1
+Test-ADServiceAccount -Identity SvcAcnt1
+
+$myBackup = New-ScheduledTaskAction -Execute "C:\Tools\Start-myBackup.ps1"
+$myTrig = New-ScheduledTaskTrigger -AT 20:00 -Daily
+$myPrincipal = New-ScheduledTaskPrincipal `
+                    -UserID TREYRESEARCH\SvcAcnt1$ Password
+
+Register-ScheduledTask myBackupTask `
+                      -Action $myBackup `
+                      -Trigger $myTrig `
+                      -Principal $myPrincipal
+
+Get-ADDefaultDomainPasswordPolicy
+
+Get-ADDefaultDomainPasswordPolicy -Identity TreyResearch.net `
+    | Set-ADDefaultDomainPasswordPolicy -LockoutThreshold 10 `
+                                        -LockoutDuration 00:10:00 `
+                                        -LockoutObservationWindow 00:10:00 `
+                                        -MinPasswordLength 10 `
+                                        -MaxPasswordAge 100.00:00:00 `
+                                        -PassThru
+
+New-ADOrganizationalUnit `
+       -Description:"OU for Executives" `
+       -Name:"Executives" `
+       -Path:"DC=TreyResearch,DC=net" `
+       -ProtectedFromAccidentalDeletion:$true `
+       -Server:"trey-dc-02.TreyResearch.net"
+
+Set-ADObject `
+       -Identity:"OU=Executives,DC=TreyResearch,DC=net" `
+       -ProtectedFromAccidentalDeletion:$true `
+       -Server:"trey-dc-02.TreyResearch.net"
+
+New-ADGroup -Name "Executive Users" `
+            -GroupScope Universal `
+            -Description "Executives of Trey Research" `
+            -GroupCategory "Security" `
+            -Path "OU=Executives,DC=TreyResearch,DC=net" `
+            -SAMAccountName "Executive Users" `
+            -PassThru 
+
+New-ADUser -Name "Sharon Crawford" `
+           -GivenName "Sharon" `
+           -SurName "Crawford" `
+           -Department "Finance" `
+           -Description "Chief Financial Officer" `
+           -ChangePasswordAtLogon $True `
+           -EmailAddress "Sharon@TreyResearch.net" `
+           -Enabled $True `
+           -PasswordNeverExpires $False `
+           -SAMAccountName "Sharon" `
+           -AccountPassword (ConvertTo-SecureString "Starting P@ssw0rd!" `
+                                                    -AsPlainText `
+                                                    -Force) `
+           -Title "Chief Financial Officer" `
+           -PassThru
+
+Add-ADPrincipalGroupMembership -Identity Sharon `
+                               -MemberOf "Executive Users","Finance Users" `
+                               -PassThru
+
+New-ADFineGrainedPasswordPolicy `
+     -description:"Set minimum 12 character passwords for all Executives." `
+     -LockoutDuration 00:10:00 `
+     -LockoutObservationWindow 00:10:00 `
+     -LockoutThreshold 5 `
+     -MaxPasswordAge 65.00:00:00 `
+     -MinPasswordLength 12 `
+     -Name:"Executive Users Pwd Policy" `
+     -Precedence 10 `
+     -PassThru
+
+Get-ADGroup -Identity "Executive Users" `
+        | Add-ADFineGrainedPasswordPolicySubject `
+         -Identity "Executive Users Pwd Policy"
+
+Get-ADFineGrainedPasswordPolicySubject -Identity "Executive Users Pwd Policy"

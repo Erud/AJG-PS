@@ -1,0 +1,118 @@
+Install-WindowsFeature -Name Windows-Server-Backup
+Update-Help -Module WindowsServerBackup -Force
+
+gcm -mod WindowsServerBackup
+gcm -Module WindowsServerBackup | Sort Noun,Verb | ft -auto Verb,Noun
+
+$wbPol = Get-WBPolicy -Editable 
+
+$newWbPol = New-WBPolicy
+
+$wbVol = Get-WBVolume -VolumePath C: 
+Add-WBVolume -Policy $newWBPol -Volume $wbVol
+
+$incFSpec = New-WBFileSpec -FileSpec "D:\","C:\Temp"
+$excFSpec = New-WBFileSpec -FileSpec "D:\PSHelp" -Exclude
+Add-WBFileSpec -Policy $newWBPol -FileSpec $incFSpec 
+Add-WBFileSpec -Policy $newWBPol -FileSpec $excFSpec
+$newWBPol
+
+$wbDisks = Get-WBDisk
+$wbDisks
+
+$wbTarget = New-WBBackupTarget -Disk $wbDisks[1]
+Add-WBBackupTarget -Policy $newWBPol -Target $wbTarget
+
+Add-WBBareMetalRecovery -Policy $newWBPol
+$newWBPol
+
+Add-WBSystemState -Policy $newWBPol
+
+Set-WBSchedule -Policy $newWBPol -Schedule 12:00,20:00
+$newWBPol
+
+$curPol = Get-WBPolicy
+Set-WBPolicy -Policy $newWBPol -AllowDeleteOldBackups:$False -Force
+Get-WBPolicy
+Start-WBBackup -Policy $newWBPol
+
+ntdsutil 
+activate instance ntds
+ifm
+create sysvol full "C:\IFM"
+quit
+quit
+
+Enable-ADOptionalFeature `
+     –Identity "Recycle Bin Feature" `
+     –Scope  ForestOrConfigurationSet `
+     –Target "TreyResearch.net" `
+     -Confirm:$False
+
+ntdsutil snapshot "activate instance ntds" create "list all" quit quit
+
+. $home\psbin\AD_Snapshot_Functions
+
+New-ADSnapshot
+
+Show-ADSnapshot
+
+bcdedit /set safeboot dsrepair
+Restart-Computer
+
+$Backups = Get-WBBackupSet
+$Index = -2
+$Backups | Format-Table -Auto `
+            @{Label="Count"; `
+              Expression={($Global:Index+=1)}},BackupTime
+
+$Backups = Get-WBBackupSet
+$Backups[($Backups.count-1)]
+
+Start-WBSystemStateRecovery -BackupSet $Backups[($Backups.count-1)]
+
+bcdedit /deletevalue safeboot
+Restart-Computer
+
+$Backups=Get-WBBackupSet
+$backup = $Backups[($Backups.count-1)]
+Start-WBSystemStateRecovery -BackupSet $Backup -AuthoritativeSysvolRecovery $True 
+
+activate instance NTDS
+Authoritative restore
+list NC CRs
+
+restore subtree DC=TreyResearch,DC=net
+
+bcdedit /deletevalue safeboot
+Restart-Computer
+
+Enable-ADOptionalFeature `
+     –Identity "Recycle Bin Feature" `
+     –Scope  ForestOrConfigurationSet `
+     –Target "TreyResearch.net" `
+     -Confirm:$False
+Get-ADOptionalFeature -Identity "Recycle Bin Feature"
+
+Get-ADUser -Identity Alfie
+
+Get-ADUser -Identity Alfie | Remove-ADUser -Confirm:$False
+Get-ADUser -Identity Alfie
+
+Get-ADObject -Filter {Name -like "Alfredo*"} -IncludeDeletedObjects
+
+Get-ADObject -Filter {Name -like "Alfredo*"} `
+             -IncludeDeletedObjects | Restore-ADObject
+Get-ADObject -Filter {Name -like "Alfredo*"}
+
+. $home\psbin\AD_Snapshot_Functions
+Show-ADSnapshot
+Mount-ADDatabase -LDAPPort 39990 -Last 
+
+Get-ADUser -Identity Alfie -Property DisplayName -Server localhost:39990
+
+Get-ADUser -Identity Alfie -Property DisplayName -Server localhost
+
+Get-ADUser -Identity Alfie -Server localhost `
+          | Repair-ADAttribute -Property DisplayName -LDAPPort 39990
+

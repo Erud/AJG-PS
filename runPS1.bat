@@ -1,0 +1,1 @@
+H:\Scripts\PS\Enumerate-Domain-Trusts1.ps1 > c:\alltrust.csv

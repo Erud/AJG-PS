@@ -1,0 +1,109 @@
+New-ADReplicationSite -Name Redmond-11 `
+                      -Description "The .11 site/subnet on the Redmond Campus" `
+                      -PassThru
+
+New-ADReplicationSubnet -Name "192.168.11.0/24" `
+                        -Site "Redmond-11" `
+                        -Location "Redmond, WA" `
+                        -PassThru
+
+New-ADReplicationSubnet -Name "192.168.10.0/24" `
+                        -Site "Default-First-Site-Name" `
+                        -Location "Redmond, WA" 
+
+Get-ADDomainController -Filter * | Format-Table -auto @{Label="RODC";`
+                      Expression={$_.isReadOnly};`
+                      Width=6; `
+                      Align="Right" `
+                      }, Name, `
+                      Site
+
+$site11 = Get-ADReplicationSite -Filter 'Name -eq "Redmond-11"'
+Move-ADDirectoryServer -Identity trey-rodc-200 `
+                       -site $site11.DistinguishedName
+
+Get-ADDomainController -Filter * | Format-Table -auto @{Label="RODC";`
+                      Expression={$_.isReadOnly};`
+                      Width=6; `
+                      Align="Right" `
+                      }, Name, `
+                      Site
+
+Install-ADDSDomainController `
+             -NoGlobalCatalog:$false `
+             -CreateDnsDelegation:$false `
+             -CriticalReplicationOnly:$false `
+             -DatabasePath "C:\Windows\NTDS" `
+             -DomainName "TreyResearch.net" `
+             -InstallDns:$true `
+             -LogPath "C:\Windows\NTDS" `
+             -NoRebootOnCompletion:$false `
+             -SiteName "Redmond-11" `
+             -SysvolPath "C:\Windows\SYSVOL" `
+             -Force:$true
+
+Get-ADReplicationSite -filter 'Name -eq "Calgary12"' `
+     | Remove-ADReplicationSite 
+
+Remove-ADReplicationSubnet -Identity 192.168.12.0/24 -Confirm:$False
+
+New-ADReplicationSite -Name Tokyo-13 `
+                      -Description "Tokyo branch office on 13 subnet" `
+                      -UniversalGroupCachingEnabled $True `
+                      -UniversalGroupCachingRefreshSite Redmond-11 `
+                      -PassThru
+
+Add-ADGroupMember `
+         -Identity "Cloneable Domain Controllers" `
+         -Members (Get-ADComputer -Identity trey-rodc-200).SAMAccountName `
+         -PassThru
+Get-ADDCCloningExcludedApplicationList -GenerateXML
+New-ADDCCloneConfigFile -Static `
+                        -CloneComputerName trey-rodc-213 `
+                        -Site Tokyo-13 `
+                        -IPv4Address 192.168.13.213 `
+                        -IPv4SubnetMask 255.255.255.0 `
+                        -IPv4DefaultGateway 192.168.13.1 `
+                        -IPv4DNSResolver 192.168.13.2
+Stop-Computer
+
+mkdir "D:\vms\trey-rodc-213\Virtual Hard Disks"
+cp "D:\vms\trey-rodc-200\Virtual Hard Disks\trey-rodc-200-System.vhdx" `
+    "D:\vms\trey-rodc-213\Virtual Hard Disks\trey-rodc-213-System.vhdx"
+$ClonedDC = New-VM -Name trey-rodc-213 `
+                   -MemoryStartupBytes 1024MB `
+                   -Generation 2 `
+                   -BootDevice VHD `
+                   -Path "D:\VMs\" `
+                   -VHDPath "D:\VMs\trey-rodc-213\Virtual Hard Disks\trey-rodc-213-system.vhdx" `
+                   -Switch "Local-13"
+Set-VM -VM $ClonedDC -ProcessorCount 2 -DynamicMemory -PassThru 
+Start-VM $ClonedDC
+
+Set-ADReplicationSubnet -Identity 192.168.13.0/24 -Site Tokyo-13 -PassThru
+
+New-ADReplicationSiteLink -Name 'CanadaWest-Japan' `
+                          -SitesIncluded Vancouver-10,Tokyo-13 `
+                          -Cost 500 `
+                          -ReplicationFrequency 240 `
+                          -InterSiteTransportProtocol IP `
+                          -PassThru
+
+$schObj = New-Object -TypeName `
+     System.DirectoryServices.ActiveDirectory.ActiveDirectorySchedule
+$schObj.ResetSchedule()
+$schObj.SetDailySchedule(0,0,4,0)
+$schObj.SetDailySchedule(8,0,12,0)
+$schObj.SetDailySchedule(16,0,20,0)
+$connection = Get-ADReplicationConnection `
+    -filter {ReplicateToDirectoryServer -like "CN=trey-dc-05*"}
+Set-ADReplicationConnection -Identity $connection `
+                            -ReplicationSchedule $schObj `
+                            -PassThru
+
+Set-ADReplicationConnection -Identity `
+          (Get-ADReplicationConnection `
+            -Filter {ReplicateToDirectoryServer -like "cn=trey-rodc-200*" }`
+          ) -ReplicateFromDirectoryServer trey-dc-05 `
+            -PassThru
+

@@ -1,0 +1,155 @@
+adprep /domainprep /gpprep.
+
+adprep /rodcprep
+
+Add-ADDSReadOnlyDomainControllerAccount `
+      -DomainControllerAccountName "trey-rodc-200" `
+      -DomainName "TreyResearch.net" `
+      -SiteName "Default-First-Site-Name" `
+      -DelegatedAdministratorAccountName "TREYRESEARCH\Stanley" `
+      -InstallDNS `
+      -AllowPasswordReplicationAccountName "Dave","Alfie","Stanley"
+
+Get-NetAdapter
+
+$Nic = Get-NetAdapter -Name Ethernet
+
+$Nic | Set-NetIPInterface -DHCP Disabled
+
+$Nic | New-NetIPAddress -AddressFamily IPv4 `
+                         -IPAddress 192.168.10.200 `
+                         -PrefixLength 24 `
+                         -type Unicast `
+                         -DefaultGateway 192.168.10.1
+
+Set-DnsClientServerAddress -InterfaceAlias $Nic.Name `
+                           -ServerAddresses 192.168.10.2,2001:db8:0:10::2 `
+                           -PassThru
+
+$Nic |  New-NetIPAddress -AddressFamily IPv6 `
+                         -IPAddress 2001:db8:0:10::c8 `
+                         -PrefixLength 64 `
+                         -type Unicast `
+                         -DefaultGateway 2001:db8:0:10::1
+
+ipconfig
+
+Set-myIP -IP4 200 -IP6 C8
+
+Rename-Computer -NewName trey-rodc-200 -Restart -Force
+
+Install-WindowsFeature `
+     -Name AD-Domain-Services `
+     -IncludeAllSubFeature `
+     -IncludeManagementTools
+
+Update-Help -SourcePath \\trey-dc-02\pshelp -force
+
+$domCred = Get-Credential -UserName "TREYRESEARCH\Stanley" `
+                          -Message "Enter your domain credentials"
+Install-ADDSDomainController -DomainName "TreyResearch.net" `
+                             -Credential $domCred `
+                             -Force `
+                             -UseExistingAccount:$True
+
+ntdsutil "activate instance ntds" ifm "create sysvol RODC C:\IFM" q q
+
+Add-ADDSReadOnlyDomainControllerAccount `
+      -DomainControllerAccountName "trey-rodc-201" `
+      -DomainName "TreyResearch.net" `
+      -SiteName "Default-First-Site-Name" `
+      -DelegatedAdministratorAccountName "TREYRESEARCH\Wally" `
+      -InstallDNS `
+      -AllowPasswordReplicationAccountName "Dave","Alfie","Wally"
+
+
+Install-WindowsFeature     -Name AD-Domain-Services `
+                           -IncludeAllSubFeature `
+                           -IncludeManagementTools
+$Nic = Get-NetAdapter      -Name Ethernet
+$Nic | New-NetIPAddress    -AddressFamily IPv4 `
+                           -IPAddress 192.168.10.201 `
+                           -PrefixLength 24 `
+                           -type Unicast `
+                           -DefaultGateway 192.168.10.1
+Set-DnsClientServerAddress -InterfaceAlias $Nic.Name `
+                           -ServerAddresses 192.168.10.2,2001:db8:0:10::2 `
+                           -PassThru
+$Nic |  New-NetIPAddress   -AddressFamily IPv6 `
+                           -IPAddress 2001:db8:0:10::c9 `
+                           -PrefixLength 64 `
+                           -type Unicast `
+                           -DefaultGateway 2001:db8:0:10::1
+Rename-Computer -NewName trey-rodc-201 -Restart -Force
+
+$domCred = Get-Credential    -UserName "TREYRESEARCH\Wally" `
+                             -Message "Enter your domain credentials"
+Install-ADDSDomainController -DomainName "TreyResearch.net" `
+                             -Credential $domCred `
+                             -InstallationMediaPath "C:\IFM" `
+                             -UseExistingAccount:$True
+
+Get-NetAdapter
+
+$Nic = Get-NetAdapter -Name Ethernet
+
+$Nic | Set-NetIPInterface -DHCP Disabled
+
+$Nic | New-NetIPAddress -AddressFamily IPv4 `
+                         -IPAddress 192.168.10.202 `
+                         -PrefixLength 24 `
+                         -type Unicast `
+                         -DefaultGateway 192.168.10.1
+
+Set-DnsClientServerAddress -InterfaceAlias $Nic.Name `
+                           -ServerAddresses 192.168.10.2,2001:db8:0:10::2 `
+                           -PassThru
+
+$Nic |  New-NetIPAddress -AddressFamily IPv6 `
+                         -IPAddress 2001:db8:0:10::ca `
+                         -PrefixLength 64 `
+                         -type Unicast `
+                         -DefaultGateway 2001:db8:0:10::1
+
+ipconfig
+
+Set-myIP -IP4 202 -IP6 CA
+
+$domCred = Get-Credential -UserName "TreyResearch\Charlie" `
+                          -Message "Enter the Domain password for Charlie."
+
+Add-Computer -DomainName TreyResearch.net `
+             -NewName trey-rodc-202 `
+             -Credential $domCred `
+             -Restart `
+             -Force
+
+Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
+
+Update-Help -SourcePath \\trey-dc-02\pshelp -force
+
+Test-ADDSDomainControllerInstallation `
+                     -DomainName "TreyResearch.net" `
+                     -InstallDNS `
+                     -SiteName "Default-First-Site-Name" `
+                     -Force `
+                     -AllowPasswordReplicationAccountName "Dave","Alfie" `
+                     -ReadOnlyReplica:$True
+
+Install-ADDSDomainController -DomainName "TreyResearch.net" `
+                             -SkipPreChecks `
+                             -InstallDNS `
+                             -SiteName "Default-First-Site-Name" `
+                             -Force `
+                             -AllowPasswordReplicationAccountName "Dave","Alfie" `
+                             -ReadOnlyReplica:$True
+
+Set-myIP 203 CB
+
+Install-ADDSDomainController -DomainName "TreyResearch.net" `
+                             -Credential $domCred `
+                             -SiteName "Default-First-Site-Name" `
+                             -InstallDNS `
+                             -InstallationMediaPath "C:\IFM" `
+                             -ReadOnlyReplica:$True
+
