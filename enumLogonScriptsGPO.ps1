@@ -25,11 +25,11 @@
 
 #>
 
-$domain = "bsd.ajgco.com"
+$domain = "smi-rps.ajgco.com"
 
-#$GPOs = Get-GPO -all -Domain $domain -Server $domain
+$GPOs = Get-GPO -all -Domain $domain -Server $domain
 
-$strline = "GPO" + "`t" + "ObjectType" + "`t" + "Command" + "`t" + "Parameters" + "`t" + "Type" + "`t" + "Order" + "`t" + "RunOrder"
+$strline = "GPO" + "`t" + "Id" + "`t" + "ObjectType" + "`t" + "Command" + "`t" + "Parameters" + "`t" + "Type" + "`t" + "Order" + "`t" + "RunOrder"
 $strline
 
 ForEach ($GPO in $GPOs) {
@@ -42,7 +42,7 @@ ForEach ($GPO in $GPOs) {
 
         If ($U) {
             
-            $strline = $GPO.DisplayName + "`t" + "User" + "`t" + $U.Command + "`t" + $U.Parameters + "`t" + $U.Type + "`t" + $U.Order + "`t" + $U.RunOrder
+            $strline = $GPO.DisplayName + "`t" + $GPO.Id + "`t" + "User" + "`t" + $U.Command + "`t" + $U.Parameters + "`t" + $U.Type + "`t" + $U.Order + "`t" + $U.RunOrder
             $strline
         }
     }
@@ -51,7 +51,7 @@ ForEach ($GPO in $GPOs) {
 
         If ($C) {
            
-            $strline = $GPO.DisplayName + "`t" + "Computer" + "`t" + $C.Command + "`t" + $C.Parameters + "`t" + $C.Type + "`t" + $C.Order + "`t" + $C.RunOrder
+            $strline = $GPO.DisplayName + "`t" + $GPO.Id + "`t" + "Computer" + "`t" + $C.Command + "`t" + $C.Parameters + "`t" + $C.Type + "`t" + $C.Order + "`t" + $C.RunOrder
             $strline
         }
     }

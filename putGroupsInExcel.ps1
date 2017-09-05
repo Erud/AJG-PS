@@ -1,14 +1,16 @@
-﻿Import-Csv “C:\Temp\Groups-Printers_AMER-ML.txt” -Delimiter "`t" | ForEach-Object {
+﻿Import-Csv “C:\Temp\GroupsN.txt” -Delimiter "`t" | ForEach-Object {
 	$GName = $_.GroupName
 	$gdomain = $_.domain
 	$name = $GName + "_" + $gdomain
 	$gdomain = $_.domain + ".ajgco.com"
 	
-	
-	If (Get-ADGroup -Filter {SamAccountName -eq $GName } -Server $gdomain )
+	# SamAccountName
+    $GNameA = $null
+    $GNameA = (Get-ADGroup -Filter {(cn -eq $GName) -or (SamAccountName -eq $GName)} -Server $gdomain).SamAccountName
+	If ($GNameA)
 	{
 		$aUsers = @()
-		Get-ADGroupMember -Identity $GName -Server $gdomain -Recursive |  %{
+		Get-ADGroupMember -Identity $GNameA -Server $gdomain -Recursive |  %{
 			
 			
 			$adn = $_.distinguishedName.split("{,}")
@@ -99,7 +101,7 @@
 			Write-Host $gdomain $GName " <->  empty"
 		}
 		else { 
-			$aUsers | Export-Excel -Path C:\temp\Groups-Printers_AMER-ML.xlsx -WorkSheetname $Name -AutoSize -BoldTopRow 
+			$aUsers | Export-Excel -Path C:\temp\GroupsN.xlsx -WorkSheetname $Name -AutoSize -BoldTopRow 
 		}
 	}
 	Else

@@ -16,7 +16,7 @@ catch
 {
 throw "Module GroupPolicy not Installed"
 }
-        $GPO = Get-GPO -All
+        $GPO = Get-GPO -All -Server "amer.ajgco.com" -Domain "amer.ajgco.com"
  
         foreach ($Policy in $GPO){
  
