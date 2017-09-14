@@ -1,1 +1,7 @@
 ﻿New-GPO "RPS Master Logon Map P" -Domain "amer.ajgco.com" -Server "amer.ajgco.com"
+New-GPO "RPS Master Logon Map Q" -Domain "amer.ajgco.com" -Server "amer.ajgco.com"
+New-GPO "RPS Master Logon Map R" -Domain "amer.ajgco.com" -Server "amer.ajgco.com"
+New-GPO "RPS Master Logon Map S" -Domain "amer.ajgco.com" -Server "amer.ajgco.com"
+New-GPO "RPS Master Logon Map T" -Domain "amer.ajgco.com" -Server "amer.ajgco.com"
+New-GPO "RPS Master Logon Map X" -Domain "amer.ajgco.com" -Server "amer.ajgco.com"
+New-GPO "RPS Master Logon Map Z" -Domain "amer.ajgco.com" -Server "amer.ajgco.com"
