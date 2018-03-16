@@ -1,0 +1,1 @@
+﻿Get-GPO -All -Server ajgco.com -Domain ajgco.com | Export-Csv -Path D:\Temp\all-ajgco-GPO.txt

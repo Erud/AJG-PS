@@ -25,7 +25,7 @@
 
 #>
 
-$domain = "smi-rps.ajgco.com"
+$domain = "amer.ajgco.com"
 
 $GPOs = Get-GPO -all -Domain $domain -Server $domain
 
