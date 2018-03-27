@@ -1,0 +1,12 @@
+$ot = "Hi"
+$co = 0
+while ($co -lt 10)
+
+{
+if ($ot.Length -2 -ne $co) { $ot += 'Lo'}
+if ($ot.Length /2 -eq 7) { $co += 2}
+$co += 2
+
+}
+
+$ot
